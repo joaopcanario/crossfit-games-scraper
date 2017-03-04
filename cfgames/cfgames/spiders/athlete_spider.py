@@ -17,8 +17,10 @@ class AthleteSpider(scrapy.Spider):
         pass
 
     def parse(self, response):
+        # Getting athlete id
         athlete_id = response.url.split("/")[-1]
 
+        # Getting athlete name
         name_selector = response.css('h3.c-heading-page-cover small::text')
 
         first_name = name_selector.extract()[0]
@@ -26,6 +28,8 @@ class AthleteSpider(scrapy.Spider):
 
         athlete_name = first_name + ' ' + last_name
 
+        # Getting athlete info:
+        # (Region, Division, Age, Height, Weight, Affliate, Team)
         labels = response.css('div.item-label::text').re(r'\w+')
 
         items = response.css('div.text::text').re(r'\w+.*\w*') + \
