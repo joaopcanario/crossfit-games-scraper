@@ -1,2 +1,5 @@
+*.pyc
+*.html
+
 .python-version
 __pycache__/
