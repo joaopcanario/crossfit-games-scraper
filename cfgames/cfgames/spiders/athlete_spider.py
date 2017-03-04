@@ -21,10 +21,11 @@ class AthleteSpider(scrapy.Spider):
         athlete_id = response.url.split("/")[-1]
 
         # Getting athlete name
-        name_selector = response.css('h3.c-heading-page-cover small::text')
+        fname_selector = response.css('h3.c-heading-page-cover small::text')
+        lname_selector = response.css('h3.c-heading-page-cover::text')
 
-        first_name = name_selector.extract()[0]
-        last_name = name_selector.re(r'\w+')[0]
+        first_name = fname_selector.extract()[0]
+        last_name = lname_selector.re(r'\w+')[0]
 
         athlete_name = first_name + ' ' + last_name
 
