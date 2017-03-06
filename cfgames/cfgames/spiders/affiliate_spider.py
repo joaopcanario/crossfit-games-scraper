@@ -1,15 +1,20 @@
+from collections import namedtuple
+
 import scrapy
 
 
 class AffiliateSpider(scrapy.Spider):
     name = "affiliate"
 
-    def start_requests(self):
-        main_url = 'http://games.crossfit.com/affiliate/'
-        max_affiliates = 2
+    Affiliate = namedtuple('Affiliate', ['id', 'name', 'country', 'region',
+                                         'city', 'state'])
+    Affiliate.__new__.__defaults__ = (None,) * len(Affiliate._fields)
 
-        for id in (663, 18921, 10000, 16000, 1, 18922):
-            url = main_url + str(id)
+    def start_requests(self):
+        max_affiliates = 20000
+
+        for id in range(1, max_affiliates):
+            url = f'http://games.crossfit.com/affiliate/{str(id)}'
             yield scrapy.Request(url=url, callback=self.parse,
                                  errback=self.err_handler)
 
@@ -17,8 +22,8 @@ class AffiliateSpider(scrapy.Spider):
         pass
 
     def parse(self, response):
-        # Getting affiliate id
-        affiliate_id = response.url.split("/")[-1]
+        # Creating affiliate id
+        affiliate = self.Affiliate(id=response.url.split("/")[-1])
 
         # Getting affiliate name
         fname_selector = response.css('h3.c-heading-page-cover small::text')
@@ -27,19 +32,19 @@ class AffiliateSpider(scrapy.Spider):
         first_name = fname_selector.extract()[0]
         last_name = lname_selector.re(r'\w+')[0]
 
-        affiliate_name = first_name + ' ' + last_name
+        affiliate = affiliate._replace(name=f'{first_name} {last_name}')
 
         # Getting affiliate info:
         # (Country, Region, Location)
-        labels = ['Country']
-        labels += response.css('div.item-label::text').re(r'\w+')[:2]
-
         items = list(map(str.strip,
                          response.css('div.text small::text').extract()))
         items += map(str.strip,
                      response.css('div.text::text').extract()[2: 5: 2])
 
-        self.log(f"Affiliate ({affiliate_name}) -> ID ({affiliate_id})")
+        affiliate = affiliate._replace(country=items[0],
+                                       region=items[1],
+                                       city=items[2].split(',')[0].strip(),
+                                       state=items[2].split(',')[1].strip())
 
-        for l, i in zip(labels, items):
-            yield self.log(f"{l} -> {i}")
+        if affiliate.country == 'Brazil' and affiliate.state == 'Bahia':
+            yield affiliate._asdict()

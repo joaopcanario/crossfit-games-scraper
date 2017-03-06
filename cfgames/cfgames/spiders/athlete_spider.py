@@ -1,15 +1,21 @@
+from collections import namedtuple
+
 import scrapy
 
 
 class AthleteSpider(scrapy.Spider):
     name = "athlete"
 
+    Athlete = namedtuple('Athlete', ['id', 'name', 'region', 'division',
+                                     'age', 'height', 'weight', 'affiliate',
+                                     'team'])
+    Athlete.__new__.__defaults__ = (None,) * len(Athlete._fields)
+
     def start_requests(self):
-        main_url = 'http://games.crossfit.com/athlete/'
         max_athletes = 1103044
 
         for id in range(1, max_athletes):
-            url = main_url + str(id)
+            url = f'http://games.crossfit.com/athlete/str(id)'
             yield scrapy.Request(url=url, callback=self.parse,
                                  errback=self.err_handler)
 
@@ -18,7 +24,7 @@ class AthleteSpider(scrapy.Spider):
 
     def parse(self, response):
         # Getting athlete id
-        athlete_id = response.url.split("/")[-1]
+        athlete = self.Athlete(id=response.url.split("/")[-1])
 
         # Getting athlete name
         fname_selector = response.css('h3.c-heading-page-cover small::text')
@@ -27,16 +33,16 @@ class AthleteSpider(scrapy.Spider):
         first_name = fname_selector.extract()[0]
         last_name = lname_selector.re(r'\w+')[0]
 
-        athlete_name = first_name + ' ' + last_name
+        athlete = athlete._replace(name=f'{first_name} {last_name}')
 
         # Getting athlete info:
-        # (Region, Division, Age, Height, Weight, Affliate, Team)
-        labels = response.css('div.item-label::text').re(r'\w+')
+        # (Region, Division, Age, Height, Weight, Affiliate, Team)
+        labels = list(map(str.lower,
+                          response.css('div.item-label::text').re(r'\w+')))
 
         items = response.css('div.text::text').re(r'\w+.*\w*') + \
                 response.css('div.text a::text').extract()
 
-        self.log(f"Info of Athlete ({athlete_name}) -> ID ({athlete_id})")
+        athlete = athlete._replace(**dict(zip(labels, items)))
 
-        for l, i in zip(labels, items):
-            yield self.log(f"{l} -> {i}")
+        self.log(f"{athlete}")
